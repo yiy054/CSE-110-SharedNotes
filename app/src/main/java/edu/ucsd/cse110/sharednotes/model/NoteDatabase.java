@@ -23,6 +23,7 @@ public abstract class NoteDatabase extends RoomDatabase {
     private static NoteDatabase make(Context context) {
         return Room.databaseBuilder(context, NoteDatabase.class, "note_app.db")
                 .allowMainThreadQueries()
+                .fallbackToDestructiveMigration()
                 .build();
     }
 

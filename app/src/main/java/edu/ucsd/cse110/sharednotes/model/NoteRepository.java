@@ -2,17 +2,22 @@ package edu.ucsd.cse110.sharednotes.model;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MediatorLiveData;
+import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.Observer;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class NoteRepository {
     private final NoteDao dao;
+    private final NoteAPI api;
 
     public NoteRepository(NoteDao dao) {
         this.dao = dao;
+        this.api = NoteAPI.provide();
     }
 
     // Synced Methods
@@ -91,12 +96,33 @@ public class NoteRepository {
         // You may (but don't have to) want to cache the LiveData's for each title, so that
         // you don't create a new polling thread every time you call getRemote with the same title.
         // You don't need to worry about killing background threads.
+        MutableLiveData<Note> noteLiveData = new MutableLiveData<>();
 
-        throw new UnsupportedOperationException("Not implemented yet");
+        // Retrieve from the server and update the local database.
+        Note note = api.get(title);
+        if (note != null) {
+            upsertLocal(note);
+            noteLiveData.setValue(note);
+        }
+
+        //3 seconds.
+        ScheduledExecutorService executorService = Executors.newSingleThreadScheduledExecutor();
+        executorService.scheduleAtFixedRate(() -> {
+            Note updatedNote = api.get(title);
+            if (updatedNote != null) {
+                upsertLocal(updatedNote);
+                noteLiveData.postValue(updatedNote);
+            }
+        }, 0, 3, TimeUnit.SECONDS);
+
+        // Return the LiveData object.
+        return noteLiveData;
+//        throw new UnsupportedOperationException("Not implemented yet");
     }
 
     public void upsertRemote(Note note) {
         // TODO: Implement upsertRemote!
-        throw new UnsupportedOperationException("Not implemented yet");
+        api.putAsync(note);
+//        throw new UnsupportedOperationException("Not implemented yet");
     }
 }
